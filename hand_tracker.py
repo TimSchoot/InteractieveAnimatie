@@ -5,6 +5,7 @@ import socket
 import cv2
 import urllib.request
 import sys
+import mediapipe as mp
 
 from mediapipe.tasks.python import vision
 try:
@@ -33,7 +34,11 @@ if not os.path.exists(MODEL_FILENAME):
 
 # Create hand landmarker options
 base_options = BaseOptions(model_asset_path=MODEL_FILENAME)
-options = HandLandmarkerOptions(base_options=base_options, num_hands=1)
+options = HandLandmarkerOptions(
+    base_options=base_options,
+    num_hands=1,
+    running_mode=vision.RunningMode.VIDEO
+)
 
 # Camera helper: try to open a working camera index and print diagnostics
 def open_camera_with_probe(max_index=4, prefer_index=0):
@@ -80,38 +85,39 @@ with HandLandmarker.create_from_options(options) as landmarker:
             # Convert BGR -> RGB
             frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
-            # Use the Tasks API image factory if available:
-            # prefer vision.TensorImage then vision.Image
-            mp_image = None
-            if hasattr(vision, "TensorImage"):
-                TensorImage = getattr(vision, "TensorImage")
-                if hasattr(TensorImage, "create_from_rgb_image"):
-                    mp_image = TensorImage.create_from_rgb_image(frame_rgb)
-            if mp_image is None and hasattr(vision, "Image"):
-                ImageFactory = getattr(vision, "Image")
-                if hasattr(ImageFactory, "create_from_rgb_image"):
-                    mp_image = ImageFactory.create_from_rgb_image(frame_rgb)
-            if mp_image is None:
-                # Last resort: use detect() on raw numpy if your build supports it (may fail)
-                print("WARNING: Could not create Tasks Image/TensorImage; attempting fallback.")
-                try:
-                    result = landmarker.detect(frame_rgb)
-                except Exception as ex:
-                    print("Fatal: fallback detect failed:", ex)
-                    break
-            else:
-                timestamp_ms = int(time.time() * 1000)
-                result = landmarker.detect_for_video(mp_image, timestamp_ms)
+            # Create MediaPipe Image from numpy array
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+            
+            # Detect hand landmarks
+            timestamp_ms = int(time.time() * 1000)
+            result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
             # Extract normalized center and send by UDP
             hand_landmarks = getattr(result, "hand_landmarks", None)
-            if hand_landmarks:
-                lm_list = hand_landmarks[0].landmarks
+            if hand_landmarks and len(hand_landmarks) > 0:
+                lm_list = hand_landmarks[0]  # already a list of landmarks
                 cx = sum(lm.x for lm in lm_list) / len(lm_list)
                 cy = sum(lm.y for lm in lm_list) / len(lm_list)
                 msg = f"{cx:.6f} {cy:.6f}"
+                
+                # Debug: print coordinates
+                print(f"Hand detected at: ({cx:.3f}, {cy:.3f})")
+                
+                # Draw hand landmarks on preview
+                h, w = frame_bgr.shape[:2]
+                for lm in lm_list:
+                    px, py = int(lm.x * w), int(lm.y * h)
+                    cv2.circle(frame_bgr, (px, py), 3, (0, 255, 0), -1)
+                
+                # Draw center point
+                center_x, center_y = int(cx * w), int(cy * h)
+                cv2.circle(frame_bgr, (center_x, center_y), 10, (0, 0, 255), 2)
+                cv2.putText(frame_bgr, f"({cx:.2f}, {cy:.2f})", 
+                           (center_x + 15, center_y), cv2.FONT_HERSHEY_SIMPLEX, 
+                           0.5, (0, 0, 255), 1)
             else:
                 msg = "-1 -1"
+                print("No hand detected")
 
             sock.sendto(msg.encode("utf-8"), (UDP_IP, UDP_PORT))
 
@@ -123,8 +129,3 @@ with HandLandmarker.create_from_options(options) as landmarker:
     finally:
         cap.release()
         cv2.destroyAllWindows()
-
-    import cv2
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    print("isOpened:", cap.isOpened())
-    cap.release()

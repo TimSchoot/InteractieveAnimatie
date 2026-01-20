@@ -26,7 +26,7 @@ namespace InteractieveAnimatie
 
             // Set the image source (absolute file path you previously used)
             MainImage.Source = new BitmapImage(new Uri(
-                @"C:\Users\timsc\source\repos\InteractieveAnimatie\mooiste-natuur-europa.jpg",
+                @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\mooiste-natuur-europa.jpg",
                 UriKind.Absolute));
 
             // Create a radial opacity mask:
