@@ -36,7 +36,7 @@ if not os.path.exists(MODEL_FILENAME):
 base_options = BaseOptions(model_asset_path=MODEL_FILENAME)
 options = HandLandmarkerOptions(
     base_options=base_options,
-    num_hands=1,
+    num_hands=2,  # Track both hands
     running_mode=vision.RunningMode.VIDEO
 )
 
@@ -82,6 +82,9 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 time.sleep(0.5)
                 continue
 
+            # Mirror the frame horizontally so movements feel natural
+            frame_bgr = cv2.flip(frame_bgr, 1)
+            
             # Convert BGR -> RGB
             frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
@@ -92,32 +95,54 @@ with HandLandmarker.create_from_options(options) as landmarker:
             timestamp_ms = int(time.time() * 1000)
             result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
-            # Extract normalized center and send by UDP
+            # Extract hand centers and send by UDP
+            # Format: "x1 y1 x2 y2" where -1 -1 means no hand
             hand_landmarks = getattr(result, "hand_landmarks", None)
+            h, w = frame_bgr.shape[:2]
+            
+            # Initialize with no hands detected
+            hand1_coords = (-1.0, -1.0)
+            hand2_coords = (-1.0, -1.0)
+            
             if hand_landmarks and len(hand_landmarks) > 0:
-                lm_list = hand_landmarks[0]  # already a list of landmarks
-                cx = sum(lm.x for lm in lm_list) / len(lm_list)
-                cy = sum(lm.y for lm in lm_list) / len(lm_list)
-                msg = f"{cx:.6f} {cy:.6f}"
-                
-                # Debug: print coordinates
-                print(f"Hand detected at: ({cx:.3f}, {cy:.3f})")
-                
-                # Draw hand landmarks on preview
-                h, w = frame_bgr.shape[:2]
-                for lm in lm_list:
-                    px, py = int(lm.x * w), int(lm.y * h)
-                    cv2.circle(frame_bgr, (px, py), 3, (0, 255, 0), -1)
-                
-                # Draw center point
-                center_x, center_y = int(cx * w), int(cy * h)
-                cv2.circle(frame_bgr, (center_x, center_y), 10, (0, 0, 255), 2)
-                cv2.putText(frame_bgr, f"({cx:.2f}, {cy:.2f})", 
-                           (center_x + 15, center_y), cv2.FONT_HERSHEY_SIMPLEX, 
-                           0.5, (0, 0, 255), 1)
+                # Process each detected hand
+                for hand_idx, lm_list in enumerate(hand_landmarks):
+                    # Calculate center of this hand
+                    hand_cx = sum(lm.x for lm in lm_list) / len(lm_list)
+                    hand_cy = sum(lm.y for lm in lm_list) / len(lm_list)
+                    
+                    # Store coordinates
+                    if hand_idx == 0:
+                        hand1_coords = (hand_cx, hand_cy)
+                    elif hand_idx == 1:
+                        hand2_coords = (hand_cx, hand_cy)
+                    
+                    # Draw landmarks for this hand (different colors)
+                    color = (0, 255, 0) if hand_idx == 0 else (255, 0, 255)  # Green/Magenta
+                    for lm in lm_list:
+                        px, py = int(lm.x * w), int(lm.y * h)
+                        cv2.circle(frame_bgr, (px, py), 3, color, -1)
+                    
+                    # Draw spotlight circle for this hand
+                    hcx, hcy = int(hand_cx * w), int(hand_cy * h)
+                    cv2.circle(frame_bgr, (hcx, hcy), 80, color, 2)
+                    label = "HAND 1" if hand_idx == 0 else "HAND 2"
+                    cv2.putText(frame_bgr, f"{label} ({hand_cx:.2f}, {hand_cy:.2f})", 
+                               (hcx + 15, hcy), cv2.FONT_HERSHEY_SIMPLEX, 
+                               0.5, color, 2)
+            
+            # Build message: "x1 y1 x2 y2"
+            msg = f"{hand1_coords[0]:.6f} {hand1_coords[1]:.6f} {hand2_coords[0]:.6f} {hand2_coords[1]:.6f}"
+            
+            # Debug output
+            if hand1_coords[0] >= 0 and hand2_coords[0] >= 0:
+                print(f"Both hands: Hand1({hand1_coords[0]:.3f},{hand1_coords[1]:.3f}) Hand2({hand2_coords[0]:.3f},{hand2_coords[1]:.3f})")
+            elif hand1_coords[0] >= 0:
+                print(f"Hand 1 only at: ({hand1_coords[0]:.3f}, {hand1_coords[1]:.3f})")
+            elif hand2_coords[0] >= 0:
+                print(f"Hand 2 only at: ({hand2_coords[0]:.3f}, {hand2_coords[1]:.3f})")
             else:
-                msg = "-1 -1"
-                print("No hand detected")
+                print("No hands detected")
 
             sock.sendto(msg.encode("utf-8"), (UDP_IP, UDP_PORT))
 

@@ -6,17 +6,21 @@
         xmlns:local="clr-namespace:InteractieveAnimatie"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
+<<<<<<< Updated upstream
     <!-- Wire mouse events on the root Grid so the mouse controls the spotlight too -->
     <Grid x:Name="RootGrid"
           MouseMove="RootGrid_MouseMove"
           MouseLeave="RootGrid_MouseLeave"
           MouseEnter="RootGrid_MouseMove">
+=======
+    <Grid x:Name="RootGrid" MouseMove="RootGrid_MouseMove" MouseLeave="RootGrid_MouseLeave">
+>>>>>>> Stashed changes
         <!-- Image -->
         <Image x:Name="MainImage" Stretch="UniformToFill" />
 
-        <!-- Dark overlay whose OpacityMask will be a moving radial gradient -->
+        <!-- Dark overlay with single spotlight -->
         <Rectangle x:Name="OverlayRect"
-                   Fill="#CC000000"
+                   Fill="#EE000000"
                    IsHitTestVisible="False" />
 
         <!-- Debug text (top-left) so we can see incoming coords / status -->

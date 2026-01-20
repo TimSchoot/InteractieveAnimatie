@@ -6,17 +6,19 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 
 namespace InteractieveAnimatie
 {
     public partial class MainWindow : Window
     {
         private readonly RadialGradientBrush _spotMask;
-        private const double SpotRadius = 0.18; // tweak to make the lit circle larger/smaller
+        private const double SpotRadius = 0.22;
 
-        // UDP listener for normalized hand coordinates ("x y" where x,y in [0..1] or -1 -1 when no hand)
+        // UDP listener for normalized hand coordinates ("x1 y1 x2 y2" where -1 -1 means no hand)
         private const int ListenPort = 5005;
         private CancellationTokenSource _cts;
 
@@ -29,7 +31,7 @@ namespace InteractieveAnimatie
                 @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\mooiste-natuur-europa.jpg",
                 UriKind.Absolute));
 
-            // Create a radial opacity mask:
+            // Create radial opacity mask for hand 1 only
             _spotMask = new RadialGradientBrush
             {
                 RadiusX = SpotRadius,
@@ -38,8 +40,9 @@ namespace InteractieveAnimatie
                 Center = new Point(-1, -1),
                 GradientStops = new GradientStopCollection
                 {
-                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.0),   // transparent center
-                    new GradientStop(Color.FromArgb(255, 255, 255, 255), 1.0) // opaque edge
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.0),   // transparent center (LICHT)
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.6),   // gradient voor zachte overgang
+                    new GradientStop(Color.FromArgb(255, 255, 255, 255), 1.0) // opaque edge (DONKER)
                 }
             };
 
@@ -66,16 +69,19 @@ namespace InteractieveAnimatie
                         Debug.WriteLine($"UDP recv: '{msg}'");
                         Dispatcher.Invoke(() => DebugText.Text = $"UDP: {msg}");
 
-                        // expected "x y" (e.g. "0.45 0.62") or "-1 -1"
+                        // expected "x1 y1 x2 y2" (e.g. "0.45 0.62 0.30 0.50") or "-1 -1 -1 -1"
                         var parts = msg.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length >= 2 &&
-                            double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x) &&
-                            double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y))
+                        if (parts.Length >= 4 &&
+                            double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x1) &&
+                            double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y1) &&
+                            double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double x2) &&
+                            double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double y2))
                         {
                             // update UI on UI thread
                             Dispatcher.Invoke(() =>
                             {
-                                if (x < 0 || y < 0)
+                                // Update hand 1 position only (ignore hand 2)
+                                if (x1 < 0 || y1 < 0)
                                 {
                                     // no hand — hide spot
                                     _spotMask.Center = new Point(-1, -1);
@@ -83,11 +89,10 @@ namespace InteractieveAnimatie
                                 }
                                 else
                                 {
-                                    // coordinates are normalized 0..1; clamp defensively
-                                    x = Math.Max(0.0, Math.Min(1.0, x));
-                                    y = Math.Max(0.0, Math.Min(1.0, y));
-                                    _spotMask.Center = new Point(x, y);
-                                    _spotMask.GradientOrigin = new Point(x, y);
+                                    x1 = Math.Max(0.0, Math.Min(1.0, x1));
+                                    y1 = Math.Max(0.0, Math.Min(1.0, y1));
+                                    _spotMask.Center = new Point(x1, y1);
+                                    _spotMask.GradientOrigin = new Point(x1, y1);
                                 }
                             });
                         }
