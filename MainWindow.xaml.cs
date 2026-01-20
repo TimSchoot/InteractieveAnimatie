@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +17,8 @@ namespace InteractieveAnimatie
     {
         private readonly RadialGradientBrush _spotMask;
         private const double SpotRadius = 0.18; // tweak to make the lit circle larger/smaller
+        private const int PixelsLeft = 1504; // image pixel dimensions
+        private const int PixelsTop = 1004;
 
         // UDP listener for normalized hand coordinates ("x y" where x,y in [0..1] or -1 -1 when no hand)
         private const int ListenPort = 5005;
@@ -24,15 +28,29 @@ namespace InteractieveAnimatie
         {
             InitializeComponent();
 
-            // Set the image source (absolute file path you previously used)
-            MainImage.Source = new BitmapImage(new Uri(
-                @"C:\Users\timsc\source\repos\InteractieveAnimatie\mooiste-natuur-europa.jpg",
-                UriKind.Absolute));
+            // Set the image source dynamically - looks in the executable's directory
+            string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mooiste-natuur-europa.jpg");
+            
+            // Fallback to project directory if running in Debug/Release folder
+            if (!File.Exists(imagePath))
+            {
+                string projectPath = Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory));
+                imagePath = Path.Combine(projectPath, "mooiste-natuur-europa.jpg");
+            }
+
+            if (File.Exists(imagePath))
+            {
+                MainImage.Source = new BitmapImage(new Uri(imagePath, UriKind.Absolute));
+            }
+            else
+            {
+                MessageBox.Show($"Image not found: {imagePath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
 
             // Create a radial opacity mask:
             _spotMask = new RadialGradientBrush
             {
-                RadiusX = SpotRadius,
+                RadiusX = SpotRadius / PixelsLeft * PixelsTop,
                 RadiusY = SpotRadius,
                 GradientOrigin = new Point(-1, -1),
                 Center = new Point(-1, -1),
