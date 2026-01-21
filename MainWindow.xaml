@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:InteractieveAnimatie"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
-    <Grid x:Name="RootGrid">
+    <Grid x:Name="RootGrid" MouseMove="RootGrid_MouseMove" MouseLeave="RootGrid_MouseLeave">
         <!-- Image -->
         <Image x:Name="MainImage" Stretch="UniformToFill" />
 

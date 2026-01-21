@@ -8,8 +8,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 
 namespace InteractieveAnimatie
 {
@@ -196,7 +198,7 @@ namespace InteractieveAnimatie
                                 // Update hand 1 position only (ignore hand 2)
                                 if (x1 < 0 || y1 < 0)
                                 {
-                                    // no hand — hide spot
+                                    // no hand ï¿½ hide spot
                                     _spotMask.Center = new Point(-1, -1);
                                     _spotMask.GradientOrigin = new Point(-1, -1);
                                 }
@@ -278,7 +280,7 @@ namespace InteractieveAnimatie
                     }
                     catch (SocketException ex)
                     {
-                        // timeout or socket error — continue loop
+                        // timeout or socket error ï¿½ continue loop
                         Debug.WriteLine($"SocketException: {ex.Message}");
                     }
                     catch (Exception ex)
