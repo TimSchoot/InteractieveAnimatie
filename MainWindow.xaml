@@ -7,8 +7,8 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid x:Name="RootGrid" MouseMove="RootGrid_MouseMove" MouseLeave="RootGrid_MouseLeave">
-        <!-- Image -->
-        <Image x:Name="MainImage" Stretch="UniformToFill" />
+        <!-- Image - Uniform stretch ensures entire image fits without cropping -->
+        <Image x:Name="MainImage" Stretch="Uniform" />
 
         <!-- Dark overlay whose OpacityMask will be a moving radial gradient -->
         <!-- Fill is much darker now: #F5 = 96% opacity (was 80%) -->
