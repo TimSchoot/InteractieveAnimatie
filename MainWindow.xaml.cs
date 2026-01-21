@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -18,15 +20,8 @@ namespace InteractieveAnimatie
         private const double MinSpotRadius = 0.10;
         private const double MaxSpotRadius = 0.35;
 
-        // Where's Waldo images
-        private readonly string[] _imagePaths = new[]
-        {
-            @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\Wheres-Waldo-Skiing.jpg",
-            @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\Wheres-Waldo-Beach.jpg",
-            @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\Wheres-Waldo-Toys.jpg",
-            @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\Wheres-Waldo-Film-Set.jpg",
-            @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\Wheres-Waldo-Underground.jpg",
-        };
+        // Where's Waldo images - loaded dynamically from folder
+        private string[] _imagePaths;
         private int _currentImageIndex = 0;
         private int _lastGestureId = 0;  // Track last gesture for debouncing
         private DateTime _lastImageChangeTime = DateTime.MinValue;  // Cooldown for image changes
@@ -43,8 +38,19 @@ namespace InteractieveAnimatie
         {
             InitializeComponent();
 
-            // Load first image
-            LoadCurrentImage();
+            // Load all Where's Waldo images from the project folder
+            LoadImagesFromFolder();
+
+            // Load first image if any found
+            if (_imagePaths != null && _imagePaths.Length > 0)
+            {
+                LoadCurrentImage();
+            }
+            else
+            {
+                MessageBox.Show("No Where's Waldo images found!\n\nPlease add images with names starting with 'Wheres-Waldo-' (e.g., Wheres-Waldo-Beach.jpg) to the project folder.", 
+                    "No Images Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
 
             // Create radial opacity mask
             _spotMask = new RadialGradientBrush
@@ -63,11 +69,55 @@ namespace InteractieveAnimatie
 
             OverlayRect.OpacityMask = _spotMask;
 
-            DebugText.Text = $"Image {_currentImageIndex + 1}/{_imagePaths.Length} - Port {ListenPort}";
+            DebugText.Text = _imagePaths != null 
+                ? $"Image {_currentImageIndex + 1}/{_imagePaths.Length} - Port {ListenPort}"
+                : "No images loaded";
 
             // start UDP listener to receive hand coordinates from an external tracker
             _cts = new CancellationTokenSource();
             Task.Run(() => UdpListenLoop(_cts.Token));
+        }
+
+        private void LoadImagesFromFolder()
+        {
+            try
+            {
+                // Get the folder where the executable is running
+                string exeFolder = AppDomain.CurrentDomain.BaseDirectory;
+                
+                // Search for Where's Waldo images (jpg, jpeg, png)
+                var imageFiles = Directory.GetFiles(exeFolder, "Wheres-Waldo-*.*")
+                    .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                               f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                               f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(f => f)
+                    .ToArray();
+
+                if (imageFiles.Length == 0)
+                {
+                    // Try parent folder (for debug mode)
+                    string projectFolder = Directory.GetParent(exeFolder).Parent.Parent.FullName;
+                    imageFiles = Directory.GetFiles(projectFolder, "Wheres-Waldo-*.*")
+                        .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                   f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                                   f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(f => f)
+                        .ToArray();
+                }
+
+                _imagePaths = imageFiles;
+                
+                Debug.WriteLine($"Found {imageFiles.Length} Where's Waldo images:");
+                foreach (var img in imageFiles)
+                {
+                    Debug.WriteLine($"  - {Path.GetFileName(img)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading images: {ex.Message}");
+                _imagePaths = new string[0];
+            }
         }
 
         private void LoadCurrentImage()
