@@ -10,9 +10,10 @@
         <!-- Image -->
         <Image x:Name="MainImage" Stretch="UniformToFill" />
 
-        <!-- Dark overlay with single spotlight -->
+        <!-- Dark overlay whose OpacityMask will be a moving radial gradient -->
+        <!-- Fill is much darker now: #F5 = 96% opacity (was 80%) -->
         <Rectangle x:Name="OverlayRect"
-                   Fill="#EE000000"
+                   Fill="#F5000000"
                    IsHitTestVisible="False" />
 
         <!-- Debug text (top-left) so we can see incoming coords / status -->
