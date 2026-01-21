@@ -112,7 +112,7 @@ namespace InteractieveAnimatie
                 Debug.WriteLine($"Found {imageFiles.Length} Where's Waldo images:");
                 foreach (var img in imageFiles)
                 {
-                    Debug.WriteLine($"  - {Path.GetFileName(img)}");
+                    Debug.WriteLine($"  - {System.IO.Path.GetFileName(img)}");
                 }
             }
             catch (Exception ex)
