@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,32 +11,47 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace InteractieveAnimatie
 {
     public partial class MainWindow : Window
     {
         private readonly RadialGradientBrush _spotMask;
-        private const double SpotRadius = 0.22;
+        private const double SpotRadius = 0.18;
 
         // UDP listener for normalized hand coordinates ("x1 y1 x2 y2" where -1 -1 means no hand)
         private const int ListenPort = 5005;
+        private const int PixelsLeft = 1504; // image pixel dimensions
+        private const int PixelsTop = 1004;
         private CancellationTokenSource _cts;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            // Set the image source (absolute file path you previously used)
-            MainImage.Source = new BitmapImage(new Uri(
-                @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\Wheres-Waldo-Ski.jpg",
-                UriKind.Absolute));
+            // Set the image source dynamically - looks in the executable's directory
+            string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mooiste-natuur-europa.jpg");
+
+            // Fallback to project directory if running in Debug/Release folder
+            if (!File.Exists(imagePath))
+            {
+                string projectPath = Path.GetDirectoryName(Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory));
+                imagePath = Path.Combine(projectPath, "mooiste-natuur-europa.jpg");
+            }
+
+            if (File.Exists(imagePath))
+            {
+                MainImage.Source = new BitmapImage(new Uri(imagePath, UriKind.Absolute));
+            }
+            else
+            {
+                MessageBox.Show($"Image not found: {imagePath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
 
             // Create radial opacity mask for hand 1 only
             _spotMask = new RadialGradientBrush
             {
-                RadiusX = SpotRadius,
+                RadiusX = SpotRadius / PixelsLeft * PixelsTop,
                 RadiusY = SpotRadius,
                 GradientOrigin = new Point(-1, -1),
                 Center = new Point(-1, -1),
