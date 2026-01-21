@@ -28,7 +28,7 @@ namespace InteractieveAnimatie
 
             // Set the image source (absolute file path you previously used)
             MainImage.Source = new BitmapImage(new Uri(
-                @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\mooiste-natuur-europa.jpg",
+                @"C:\Users\odinw\Documents\GitHub\InteractieveAnimatie\Wheres-Waldo-Ski.jpg",
                 UriKind.Absolute));
 
             // Create radial opacity mask for hand 1 only
