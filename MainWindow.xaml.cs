@@ -57,7 +57,12 @@ namespace InteractieveAnimatie
                 GradientStops = new GradientStopCollection
                 {
                     new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.0),   // transparent center
+<<<<<<< Updated upstream
                     new GradientStop(Color.FromArgb(255, 255, 255, 255), 1.0) // opaque edge
+=======
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 0.3),   // Changed from 0.6 to 0.3
+                    new GradientStop(Color.FromArgb(255, 255, 255, 255), 1.0)  // opaque edge
+>>>>>>> Stashed changes
                 }
             };
 
@@ -70,6 +75,103 @@ namespace InteractieveAnimatie
             Task.Run(() => UdpListenLoop(_cts.Token));
         }
 
+<<<<<<< Updated upstream
+=======
+        private void LoadImagesFromFolder()
+        {
+            try
+            {
+                // Get the folder where the executable is running
+                string exeFolder = AppDomain.CurrentDomain.BaseDirectory;
+                
+                // Search for Where's Waldo images (jpg, jpeg, png)
+                var imageFiles = Directory.GetFiles(exeFolder, "Wheres-Waldo-*.*")
+                    .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                               f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                               f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(f => f)
+                    .ToArray();
+
+                if (imageFiles.Length == 0)
+                {
+                    // Try parent folder (for debug mode)
+                    string projectFolder = Directory.GetParent(exeFolder).Parent.Parent.FullName;
+                    imageFiles = Directory.GetFiles(projectFolder, "Wheres-Waldo-*.*")
+                        .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                   f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                                   f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(f => f)
+                        .ToArray();
+                }
+
+                _imagePaths = imageFiles;
+                
+                Debug.WriteLine($"Found {imageFiles.Length} Where's Waldo images:");
+                foreach (var img in imageFiles)
+                {
+                    Debug.WriteLine($"  - {System.IO.Path.GetFileName(img)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading images: {ex.Message}");
+                _imagePaths = new string[0];
+            }
+        }
+        private void LoadHandGesturesImages()
+        {
+            MainImage.Source = new BitmapImage(new Uri("pack://application:,,,/Images/HandGestures.png"));
+        }
+
+        private void LoadCurrentImage()
+        {
+            if (_currentImageIndex >= 0 && _currentImageIndex < _imagePaths.Length)
+            {
+                MainImage.Source = new BitmapImage(new Uri(_imagePaths[_currentImageIndex], UriKind.Absolute));
+            }
+        }
+
+        private void NextImage()
+        {
+            _currentImageIndex = (_currentImageIndex + 1) % _imagePaths.Length;
+            LoadCurrentImage();
+            DebugText.Text = $"Image {_currentImageIndex + 1}/{_imagePaths.Length}";
+        }
+
+        private void PreviousImage()
+        {
+            _currentImageIndex = (_currentImageIndex - 1 + _imagePaths.Length) % _imagePaths.Length;
+            LoadCurrentImage();
+            DebugText.Text = $"Image {_currentImageIndex + 1}/{_imagePaths.Length}";
+        }
+
+        private void IncreaseSpotlightSize()
+        {
+            // Check throttle to prevent too-fast changes
+            if ((DateTime.Now - _lastSizeChangeTime).TotalMilliseconds < SizeChangeThrottleMs)
+                return;
+            
+            _spotRadius = Math.Min(MaxSpotRadius, _spotRadius + 0.02);
+            _spotMask.RadiusX = _spotRadius;
+            _spotMask.RadiusY = _spotRadius;
+            _lastSizeChangeTime = DateTime.Now;
+            DebugText.Text = $"Spotlight: {(_spotRadius * 100):F0}% - Image {_currentImageIndex + 1}/{_imagePaths.Length}";
+        }
+
+        private void DecreaseSpotlightSize()
+        {
+            // Check throttle to prevent too-fast changes
+            if ((DateTime.Now - _lastSizeChangeTime).TotalMilliseconds < SizeChangeThrottleMs)
+                return;
+            
+            _spotRadius = Math.Max(MinSpotRadius, _spotRadius - 0.02);
+            _spotMask.RadiusX = _spotRadius;
+            _spotMask.RadiusY = _spotRadius;
+            _lastSizeChangeTime = DateTime.Now;
+            DebugText.Text = $"Spotlight: {(_spotRadius * 100):F0}% - Image {_currentImageIndex + 1}/{_imagePaths.Length}";
+        }
+
+>>>>>>> Stashed changes
         private async Task UdpListenLoop(CancellationToken token)
         {
             using (var udp = new UdpClient(ListenPort))
@@ -107,6 +209,78 @@ namespace InteractieveAnimatie
                                     _spotMask.Center = new Point(x, y);
                                     _spotMask.GradientOrigin = new Point(x, y);
                                 }
+<<<<<<< Updated upstream
+=======
+
+                                // Gesture detection with debouncing
+                                // Only trigger on gesture change (rising edge) for most gestures
+                                // But allow continuous trigger for thumbs up/down (resize while holding)
+                                if (gestureId > 0)
+                                {
+                                    // Check cooldown for image-changing gestures
+                                    bool canChangeImage = (DateTime.Now - _lastImageChangeTime).TotalMilliseconds > ImageChangeCooldownMs;
+                                    
+                                    // For thumbs: allow continuous action while gesture is held
+                                    // For others: only trigger on gesture change
+                                    bool isNewGesture = gestureId != _lastGestureId;
+                                    bool isContinuousGesture = (gestureId == 3 || gestureId == 4); // Thumbs up/down
+                                    
+                                    if (isNewGesture || isContinuousGesture)
+                                    {
+                                        switch (gestureId)
+                                        {
+                                            case 1: // Closed_Fist - at least something now
+                                                LoadHandGesturesImages();
+                                                if (isNewGesture)
+                                                {
+                                                    Debug.WriteLine("?? FIST - No action assigned.");
+                                                }
+                                                break;
+                                            case 2: // Victory/Peace
+                                                if (isNewGesture && canChangeImage)
+                                                {
+                                                    PreviousImage();
+                                                    _lastImageChangeTime = DateTime.Now;
+                                                    Debug.WriteLine("?? PEACE - Previous image!");
+                                                }
+                                                break;
+                                            case 3: // Thumb_Up (continuous)
+                                                IncreaseSpotlightSize();
+                                                if (isNewGesture) Debug.WriteLine("?? THUMBS UP - Spotlight bigger!");
+                                                break;
+                                            case 4: // Thumb_Down (continuous)
+                                                DecreaseSpotlightSize();
+                                                if (isNewGesture) Debug.WriteLine("?? THUMBS DOWN - Spotlight smaller!");
+                                                break;
+                                            case 5: // Open_Palm
+                                                // No action - palm just tracks normally
+                                                break;
+                                            case 6: // Pointing_Up - Primary "next" gesture
+                                                if (isNewGesture && canChangeImage)
+                                                {
+                                                    NextImage();
+                                                    _lastImageChangeTime = DateTime.Now;
+                                                    Debug.WriteLine("?? POINTING UP - Next image!");
+                                                }
+                                                break;
+                                            case 7: // Middle_Finger
+                                                if (isNewGesture)
+                                                {
+                                                    _currentImageIndex = 0;
+                                                    _spotRadius = 0.22;
+                                                    _spotMask.RadiusX = _spotRadius;
+                                                    _spotMask.RadiusY = _spotRadius;
+                                                    _lastImageChangeTime = DateTime.Now;
+                                                    LoadCurrentImage();
+                                                    DebugText.Text = $"RESET - Image 1/{_imagePaths.Length}";
+                                                    Debug.WriteLine("?? MIDDLE FINGER - Full restart!");
+                                                }
+                                                break;
+                                        }
+                                    }
+                                }
+                                _lastGestureId = gestureId;
+>>>>>>> Stashed changes
                             });
                         }
                         else
